@@ -17,30 +17,43 @@ import { FitnessClassModule } from './fitness_class/fitness_class.module';
 import { ClassScheduleModule } from './class_schedule/class_schedule.module';
 import { ClassBookingModule } from './class_booking/class_booking.module';
 
-
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal: true
+      isGlobal: true,
     }),
     TypeOrmModule.forRootAsync({
-      imports: [ConfigModule], 
-      inject:[ConfigService],
+      imports: [ConfigModule],
+      inject: [ConfigService],
       useFactory: (configService: ConfigService) => ({
-        type: 'postgres', 
-        host: configService.get<string>('DB_HOST'), 
+        type: 'postgres',
+        host: configService.get<string>('DB_HOST'),
         port: Number(configService.get<number>('DB_PORT')),
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        autoLoadEntities: true, 
-        synchronize: false, 
-        ssl: {
-          rejectUnauthorized: false
-        }
-      })
+        autoLoadEntities: false,
+        synchronize: false,
+        ssl:
+          configService.get<string>('DB_SSL') === 'true'
+            ? { rejectUnauthorized: false }
+            : false,
+      }),
     }),
-    UserModule, RoleModule, WorkerProfileModule, MembersProfileModule, FitnessAssessmentModule, MembershipPlanModule, SubscriptionModule, ExerciseCatalogModule, RoutineExerciseModule, WorkoutPlanModule, FitnessClassModule, ClassScheduleModule, ClassBookingModule],
+    UserModule,
+    RoleModule,
+    WorkerProfileModule,
+    MembersProfileModule,
+    FitnessAssessmentModule,
+    MembershipPlanModule,
+    SubscriptionModule,
+    ExerciseCatalogModule,
+    RoutineExerciseModule,
+    WorkoutPlanModule,
+    FitnessClassModule,
+    ClassScheduleModule,
+    ClassBookingModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
