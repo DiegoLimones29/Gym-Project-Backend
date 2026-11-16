@@ -14,6 +14,9 @@ import { WorkerProfile } from '../../worker_profile/entities/worker_profile.enti
 import { MembersProfile } from '../../members_profile/entities/members_profile.entity';
 import { Subscription } from '../../subscription/entities/subscription.entity';
 import { FitnessAssessment } from '../../fitness_assessment/entities/fitness_assessment.entity';
+import { ClassSchedule } from '../../class_schedule/entities/class_schedule.entity';
+import { ClassBooking } from '../../class_booking/entities/class_booking.entity';
+import { WorkoutPlan } from '../../workout_plan/entities/workout_plan.entity';
 
 @Entity('users')
 export class User {
@@ -58,5 +61,17 @@ export class User {
   assessmentsAsMember: FitnessAssessment[]; //relacion a assessment como member 
 
   @OneToMany(() => FitnessAssessment, (fitnessAssessment) => fitnessAssessment.worker)
-  assessmentsAsWorker: FitnessAssessment[]; 
+  assessmentsAsWorker: FitnessAssessment[]; //relacion a assessment como worker
+
+  @OneToMany(() => ClassSchedule, (classSchedule) => classSchedule.trainer)
+  classesAsTrainer:ClassSchedule[]; // relacion a classSchedule como worker (trainer)
+
+  @OneToMany(() => ClassBooking, (classBooking) => classBooking.member)
+  classBookings: ClassBooking[]; //relacion a classBooking como member
+
+  @OneToMany(() => WorkoutPlan, (plan) => plan.member)
+  workoutPlansAsMember: WorkoutPlan[]; //relacion a workoutPlan como member
+
+  @OneToMany(() => WorkoutPlan, (plan) => plan.trainer)
+  workoutPlansAsTrainer: WorkoutPlan[]; //relacion a workoutPlan como trainer
 }
