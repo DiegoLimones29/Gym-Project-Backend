@@ -32,8 +32,8 @@ import { ClassBookingModule } from './class_booking/class_booking.module';
         username: configService.get<string>('DB_USERNAME'),
         password: configService.get<string>('DB_PASSWORD'),
         database: configService.get<string>('DB_NAME'),
-        autoLoadEntities: false,
-        synchronize: false,
+        autoLoadEntities: true,
+        synchronize: true,
         ssl:
           configService.get<string>('DB_SSL') === 'true'
             ? { rejectUnauthorized: false }
