@@ -16,6 +16,7 @@ import { WorkoutPlanModule } from './workout_plan/workout_plan.module';
 import { FitnessClassModule } from './fitness_class/fitness_class.module';
 import { ClassScheduleModule } from './class_schedule/class_schedule.module';
 import { ClassBookingModule } from './class_booking/class_booking.module';
+import { AuthModule } from './auth/auth.module';
 
 @Module({
   imports: [
@@ -53,6 +54,7 @@ import { ClassBookingModule } from './class_booking/class_booking.module';
     FitnessClassModule,
     ClassScheduleModule,
     ClassBookingModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],

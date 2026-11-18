@@ -67,8 +67,38 @@ export class UserService {
     };
   }
 
-  update(id: string, updateUserDto: UpdateUserDto) {
-    return `This action updates a #${id} user`;
+  async update(id: string, updateUserDto: UpdateUserDto) {
+    const { password, ...rest } = updateUserDto;
+
+    const user = await this.userRepo.preload({
+      id,
+      ...rest,
+      ...(password && { password: await bcrypt.hash(password, 10) }),
+    });
+
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+
+    try {
+      await this.userRepo.save(user);
+    } catch (error: any) {
+      if (error.code === '23505') {
+        throw new ConflictException('El email ya está registrado');
+      }
+      throw error;
+    }
+
+    return {
+      message: 'User updated',
+      data: {
+        id: user.id,
+        email: user.email,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        roleId: user.roleId,
+      },
+    };
   }
 
   async remove(id: string) {
@@ -80,5 +110,20 @@ export class UserService {
 
     await this.userRepo.remove(user);
     return { message: 'User deleted nigga' };
+  }
+
+  async findByEmailForAuth(email: string): Promise<User | null> {
+    return this.userRepo.findOne({
+      where: { email },
+      select: {
+        id: true,
+        email: true,
+        password: true,
+        roleId: true,
+      },
+      relations: {
+        role: true,
+      },
+    });
   }
 }

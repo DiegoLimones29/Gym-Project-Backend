@@ -1,26 +1,77 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { MembersProfile } from './entities/members_profile.entity';
 import { CreateMembersProfileDto } from './dto/create-members_profile.dto';
 import { UpdateMembersProfileDto } from './dto/update-members_profile.dto';
 
 @Injectable()
 export class MembersProfileService {
-  create(createMembersProfileDto: CreateMembersProfileDto) {
-    return 'This action adds a new membersProfile';
+  constructor(
+    @InjectRepository(MembersProfile)
+    private readonly memberRepo: Repository<MembersProfile>,
+  ) {}
+
+  async create(dto: CreateMembersProfileDto) {
+    const profile = this.memberRepo.create({
+      ...dto,
+      birthDate: new Date(dto.birthDate),
+    });
+
+    try {
+      const saved = await this.memberRepo.save(profile);
+      return { message: 'Perfil de miembro creado', data: saved };
+    } catch (error: any) {
+      if (error.code === '23505') {
+        throw new ConflictException(
+          'El teléfono o el usuario ya tiene un perfil registrado',
+        );
+      }
+      throw error;
+    }
   }
 
-  findAll() {
-    return `This action returns all membersProfile`;
+  async findAll() {
+    const profiles = await this.memberRepo.find({
+      relations: { user: true },
+    });
+    return { data: profiles };
   }
 
-  findOne(id: number) {
-    return `This action returns a #${id} membersProfile`;
+  async findOne(id: string) {
+    const profile = await this.memberRepo.findOne({
+      where: { id },
+      relations: { user: true },
+    });
+    if (!profile) {
+      throw new NotFoundException(`Perfil de miembro ${id} no encontrado`);
+    }
+    return { data: profile };
   }
 
-  update(id: number, updateMembersProfileDto: UpdateMembersProfileDto) {
-    return `This action updates a #${id} membersProfile`;
+  async update(id: string, dto: UpdateMembersProfileDto) {
+    const profile = await this.memberRepo.preload({
+      id,
+      ...dto,
+      ...(dto.birthDate && { birthDate: new Date(dto.birthDate) }),
+    });
+    if (!profile) {
+      throw new NotFoundException(`Perfil de miembro ${id} no encontrado`);
+    }
+    const saved = await this.memberRepo.save(profile);
+    return { message: 'Perfil actualizado', data: saved };
   }
 
-  remove(id: number) {
-    return `This action removes a #${id} membersProfile`;
+  async remove(id: string) {
+    const profile = await this.memberRepo.findOneBy({ id });
+    if (!profile) {
+      throw new NotFoundException(`Perfil de miembro ${id} no encontrado`);
+    }
+    await this.memberRepo.remove(profile);
+    return { message: 'Perfil eliminado' };
   }
 }

@@ -1,18 +1,25 @@
-import { IsDate, IsNotEmpty, IsOptional, IsString } from "class-validator";
+import {
+  IsDateString,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  IsUUID,
+} from 'class-validator';
 
 export class CreateMembersProfileDto {
+  @IsUUID()
+  @IsNotEmpty()
+  userId: string;
 
-    @IsNotEmpty()
-    userId: string; 
+  @IsString()
+  @IsNotEmpty()
+  phone: string;
 
-    @IsString()
-    @IsNotEmpty()
-    phone: string; 
+  @IsDateString()
+  @IsNotEmpty()
+  birthDate: string;
 
-    @IsDate()
-    birthDate: string; 
-
-    @IsOptional()
-    @IsString()
-    emergencyContactPhone: string; 
+  @IsString()
+  @IsOptional()
+  emergencyContactPhone?: string;
 }
