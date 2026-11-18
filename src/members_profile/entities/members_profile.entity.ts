@@ -16,7 +16,7 @@ export class MembersProfile {
     @Column({ name: 'birth_date'})
     birthDate: Date; 
 
-    @Column({ name: 'emergency_contact_phone'})
+    @Column({ name: 'emergency_contact_phone', nullable: true})
     emergencyContactPhone?: string; 
 
     @OneToOne(() => User, (user) => user.memberProfile, {onDelete: 'CASCADE'}) //necesito entender esta puta sintaxis 
