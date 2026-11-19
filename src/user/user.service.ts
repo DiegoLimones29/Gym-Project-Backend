@@ -1,129 +1,126 @@
 import {
   ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
+import { User } from './entities/user.entity';
+import { Role } from '../role/entities/role.entity';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @Injectable()
 export class UserService {
   constructor(
     @InjectRepository(User)
-    private readonly userRepo: Repository<User>,
+    private readonly userRepository: Repository<User>,
+    @InjectRepository(Role)
+    private readonly roleRepository: Repository<Role>,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
-    const { password, ...rest } = createUserDto; //destructuramos para obtener la pinche password
+  async create(createUserDto: CreateUserDto, isAdmin = true) {
+    const existingUser = await this.userRepository.findOneBy({
+      email: createUserDto.email,
+    });
+    if (existingUser) {
+      throw new ConflictException('Este correo electrónico ya está registrado');
+    }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const targetRole = await this.roleRepository.findOneBy({
+      id: createUserDto.roleId,
+    });
+    if (!targetRole) {
+      throw new NotFoundException(`El rol #${createUserDto.roleId} no existe`);
+    }
 
-    const user = this.userRepo.create({
-      ...rest,
+    if (!isAdmin && targetRole.role.toLowerCase() !== 'member') {
+      throw new ForbiddenException(
+        'Solo un administrador puede registrar trabajadores o administradores.',
+      );
+    }
+
+    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+
+    const newUser = this.userRepository.create({
+      ...createUserDto,
       password: hashedPassword,
     });
 
-    try {
-      await this.userRepo.save(user);
-    } catch (error: any) {
-      if (error.code === '23505') {
-        throw new ConflictException('El email ya está registrado');
-      }
-      throw error;
-    }
-
-    const { password: _, ...safeUser } = user; //destructuramos para no retornar la password en el response
+    const savedUser = await this.userRepository.save(newUser);
+    const { password, ...userWithoutPassword } = savedUser;
 
     return {
-      message: 'user saved nigga',
-      data: safeUser,
+      message: 'Usuario creado correctamente',
+      data: userWithoutPassword,
     };
   }
 
   async findAll() {
-    const users = await this.userRepo.find();
-
-    return {
-      message: 'users nigga',
-      data: users,
-    };
+    const users = await this.userRepository.find({
+      relations: { role: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        roleId: true,
+      },
+    });
+    return { data: users };
   }
 
   async findOne(id: string) {
-    //esta madre jala nomas con uuid
-    const user = await this.userRepo.findOneBy({ id });
-
+    const user = await this.userRepository.findOne({
+      where: { id },
+      relations: { role: true },
+      select: {
+        id: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        roleId: true,
+      },
+    });
     if (!user) {
-      throw new NotFoundException(`user with id ${id} not found nigger`);
+      throw new NotFoundException(`Usuario ${id} no encontrado`);
     }
+    return { data: user };
+  }
 
-    return {
-      message: 'user found nigga',
-      data: user,
-    };
+  async findByEmailForAuth(email: string) {
+    return this.userRepository
+      .createQueryBuilder('user')
+      .leftJoinAndSelect('user.role', 'role')
+      .addSelect('user.password')
+      .where('user.email = :email', { email })
+      .getOne();
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
-    const { password, ...rest } = updateUserDto;
+    const payload = { ...updateUserDto };
+    if (payload.password) {
+      payload.password = await bcrypt.hash(payload.password, 10);
+    }
 
-    const user = await this.userRepo.preload({
-      id,
-      ...rest,
-      ...(password && { password: await bcrypt.hash(password, 10) }),
-    });
-
+    const user = await this.userRepository.preload({ id, ...payload });
     if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
+      throw new NotFoundException(`Usuario ${id} no encontrado`);
     }
 
-    try {
-      await this.userRepo.save(user);
-    } catch (error: any) {
-      if (error.code === '23505') {
-        throw new ConflictException('El email ya está registrado');
-      }
-      throw error;
-    }
-
-    return {
-      message: 'User updated',
-      data: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        roleId: user.roleId,
-      },
-    };
+    const saved = await this.userRepository.save(user);
+    const { password, ...userWithoutPassword } = saved;
+    return { message: 'Usuario actualizado', data: userWithoutPassword };
   }
 
   async remove(id: string) {
-    const user = await this.userRepo.findOneBy({ id });
-
+    const user = await this.userRepository.findOneBy({ id });
     if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
+      throw new NotFoundException(`Usuario ${id} no encontrado`);
     }
-
-    await this.userRepo.remove(user);
-    return { message: 'User deleted nigga' };
-  }
-
-  async findByEmailForAuth(email: string): Promise<User | null> {
-    return this.userRepo.findOne({
-      where: { email },
-      select: {
-        id: true,
-        email: true,
-        password: true,
-        roleId: true,
-      },
-      relations: {
-        role: true,
-      },
-    });
+    await this.userRepository.remove(user);
+    return { message: 'Usuario eliminado' };
   }
 }
