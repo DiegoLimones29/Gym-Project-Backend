@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UsersClientService } from '../users-client/users-client.service';
 import { MembersProfile } from './entities/members_profile.entity';
 import { CreateMembersProfileDto } from './dto/create-members_profile.dto';
 import { UpdateMembersProfileDto } from './dto/update-members_profile.dto';
@@ -14,9 +15,12 @@ export class MembersProfileService {
   constructor(
     @InjectRepository(MembersProfile)
     private readonly memberRepo: Repository<MembersProfile>,
+    private readonly usersClient: UsersClientService,
   ) {}
 
   async create(dto: CreateMembersProfileDto) {
+    await this.usersClient.assertUsersExist([dto.userId]);
+
     const profile = this.memberRepo.create({
       ...dto,
       birthDate: new Date(dto.birthDate),
@@ -36,24 +40,39 @@ export class MembersProfileService {
   }
 
   async findAll() {
-    const profiles = await this.memberRepo.find({
-      relations: { user: true },
-    });
-    return { data: profiles };
+    const profiles = await this.memberRepo.find();
+    const usersMap = await this.usersClient.findUsersByIds(
+      profiles.map((profile) => profile.userId),
+    );
+    return {
+      data: profiles.map((profile) => ({
+        ...profile,
+        user: usersMap.get(profile.userId) ?? null,
+      })),
+    };
   }
 
   async findOne(id: string) {
     const profile = await this.memberRepo.findOne({
       where: { id },
-      relations: { user: true },
     });
     if (!profile) {
       throw new NotFoundException(`Perfil de miembro ${id} no encontrado`);
     }
-    return { data: profile };
+    const usersMap = await this.usersClient.findUsersByIds([profile.userId]);
+    return {
+      data: {
+        ...profile,
+        user: usersMap.get(profile.userId) ?? null,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateMembersProfileDto) {
+    if (dto.userId) {
+      await this.usersClient.assertUsersExist([dto.userId]);
+    }
+
     const profile = await this.memberRepo.preload({
       id,
       ...dto,

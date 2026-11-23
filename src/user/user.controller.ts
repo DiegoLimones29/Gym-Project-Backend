@@ -3,52 +3,70 @@ import {
   Controller,
   Delete,
   Get,
+  Headers,
   Param,
   Patch,
   Post,
-  Req,
   UseGuards,
 } from '@nestjs/common';
-import { UserService } from './user.service';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
+import { Roles } from '../auth/decorators/roles.decorator';
 import { AuthGuard } from '../auth/guards/auth.guard';
 import { RolesGuard } from '../auth/guards/roles.guard';
-import { Roles } from '../auth/decorators/roles.decorator';
+import { UserCleanupService } from '../realtime/user-cleanup.service';
+import { UsersClientService } from '../users-client/users-client.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
 
 @UseGuards(AuthGuard, RolesGuard)
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(
+    private readonly usersClient: UsersClientService,
+    private readonly userCleanupService: UserCleanupService,
+  ) {}
 
   @Roles('admin', 'worker')
   @Post()
-  create(@Body() createUserDto: CreateUserDto, @Req() req: any) {
-    const isAdmin = req.user?.roleId === 7 || req.user?.role === 'admin';
-    return this.userService.create(createUserDto, isAdmin);
+  create(
+    @Body() createUserDto: CreateUserDto,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.usersClient.createUser(createUserDto, authHeader);
   }
 
   @Roles('admin', 'worker')
   @Get()
-  findAll() {
-    return this.userService.findAll();
+  findAll(@Headers('authorization') authHeader?: string) {
+    return this.usersClient.findAllUsers(authHeader);
   }
 
   @Roles('admin', 'worker')
   @Get(':id')
-  findOne(@Param('id') id: string) {
-    return this.userService.findOne(id);
+  findOne(
+    @Param('id') id: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.usersClient.findOneUser(id, authHeader);
   }
 
   @Roles('admin')
   @Patch(':id')
-  update(@Param('id') id: string, @Body() updateUserDto: UpdateUserDto) {
-    return this.userService.update(id, updateUserDto);
+  update(
+    @Param('id') id: string,
+    @Body() updateUserDto: UpdateUserDto,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    return this.usersClient.updateUser(id, updateUserDto, authHeader);
   }
 
   @Roles('admin')
   @Delete(':id')
-  remove(@Param('id') id: string) {
-    return this.userService.remove(id);
+  async remove(
+    @Param('id') id: string,
+    @Headers('authorization') authHeader?: string,
+  ) {
+    const response = await this.usersClient.removeUser(id, authHeader);
+    await this.userCleanupService.cleanupForDeletedUser(id);
+    return response;
   }
 }

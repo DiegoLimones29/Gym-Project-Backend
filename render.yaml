@@ -1,0 +1,29 @@
+services:
+  - type: web
+    name: gym-project-backend
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DB_SSL
+        value: "true"
+      - key: DB_SCHEMA
+        value: public
+      - key: DB_SYNCHRONIZE
+        value: "true"
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: USERS_SERVICE_TIMEOUT_MS
+        value: "45000"
+      - key: CORS_ORIGIN
+        value: https://diegolimones29.github.io
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: INTERNAL_API_KEY
+        sync: false
+      - key: USERS_SERVICE_URL
+        sync: false

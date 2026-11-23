@@ -5,18 +5,22 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ClassSchedule } from './entities/class_schedule.entity';
+import { UsersClientService } from '../users-client/users-client.service';
 import { CreateClassScheduleDto } from './dto/create-class_schedule.dto';
 import { UpdateClassScheduleDto } from './dto/update-class_schedule.dto';
+import { ClassSchedule } from './entities/class_schedule.entity';
 
 @Injectable()
 export class ClassScheduleService {
   constructor(
     @InjectRepository(ClassSchedule)
     private readonly scheduleRepo: Repository<ClassSchedule>,
+    private readonly usersClient: UsersClientService,
   ) {}
 
   async create(dto: CreateClassScheduleDto) {
+    await this.usersClient.assertUsersExist([dto.trainerId]);
+
     const start = new Date(dto.startTime);
     const end = new Date(dto.endTime);
 
@@ -49,12 +53,27 @@ export class ClassScheduleService {
     const schedules = await this.scheduleRepo.find({
       relations: {
         fitnessClass: true,
-        trainer: true,
-        classBookings: { member: true },
+        classBookings: true,
       },
       order: { startTime: 'ASC' },
     });
-    return { data: schedules };
+
+    const userIds = schedules.flatMap((schedule) => [
+      schedule.trainerId,
+      ...(schedule.classBookings ?? []).map((booking) => booking.memberId),
+    ]);
+    const usersMap = await this.usersClient.findUsersByIds(userIds);
+
+    return {
+      data: schedules.map((schedule) => ({
+        ...schedule,
+        trainer: usersMap.get(schedule.trainerId) ?? null,
+        classBookings: (schedule.classBookings ?? []).map((booking) => ({
+          ...booking,
+          member: usersMap.get(booking.memberId) ?? null,
+        })),
+      })),
+    };
   }
 
   async findOne(id: string) {
@@ -62,17 +81,36 @@ export class ClassScheduleService {
       where: { id },
       relations: {
         fitnessClass: true,
-        trainer: true,
-        classBookings: { member: true },
+        classBookings: true,
       },
     });
     if (!schedule) {
       throw new NotFoundException(`Horario ${id} no encontrado`);
     }
-    return { data: schedule };
+
+    const userIds = [
+      schedule.trainerId,
+      ...(schedule.classBookings ?? []).map((booking) => booking.memberId),
+    ];
+    const usersMap = await this.usersClient.findUsersByIds(userIds);
+
+    return {
+      data: {
+        ...schedule,
+        trainer: usersMap.get(schedule.trainerId) ?? null,
+        classBookings: (schedule.classBookings ?? []).map((booking) => ({
+          ...booking,
+          member: usersMap.get(booking.memberId) ?? null,
+        })),
+      },
+    };
   }
 
   async update(id: string, dto: UpdateClassScheduleDto) {
+    if (dto.trainerId) {
+      await this.usersClient.assertUsersExist([dto.trainerId]);
+    }
+
     const schedule = await this.scheduleRepo.preload({
       id,
       ...dto,

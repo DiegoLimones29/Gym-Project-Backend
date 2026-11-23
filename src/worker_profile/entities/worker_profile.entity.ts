@@ -1,22 +1,16 @@
-import { Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
-import { User } from "../../user/entities/user.entity";
+import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('workers_profiles')
 export class WorkerProfile {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-    @PrimaryGeneratedColumn('uuid')
-    id: string; 
+  @Column({ name: 'user_id', type: 'uuid', unique: true })
+  userId: string;
 
-    @Column({name: 'user_id'})
-    userId: string; 
+  @Column()
+  area: string;
 
-    @Column()
-    area: string; 
-
-    @Column()
-    shift: string; 
-
-    @OneToOne(() => User, (user) => user.workerProfile, {onDelete: 'CASCADE'})
-    @JoinColumn({ name: 'user_id'})
-    user: User; 
+  @Column()
+  shift: string;
 }

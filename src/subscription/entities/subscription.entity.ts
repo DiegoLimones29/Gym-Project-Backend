@@ -7,7 +7,6 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 import { MembershipPlan } from '../../membership_plan/entities/membership_plan.entity';
-import { User } from '../../user/entities/user.entity';
 
 @Entity('subscriptions')
 export class Subscription {
@@ -32,12 +31,10 @@ export class Subscription {
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-
-  @ManyToOne(() => User, (user) => user.subscriptions)
-  @JoinColumn({ name: 'member_id'})
-  user: User; 
-
-  @ManyToOne(() => MembershipPlan, (membershipPlan) => membershipPlan.subscriptions)
-  @JoinColumn({name: 'plan_id'})
-  membershipPlan: MembershipPlan; 
+  @ManyToOne(
+    () => MembershipPlan,
+    (membershipPlan) => membershipPlan.subscriptions,
+  )
+  @JoinColumn({ name: 'plan_id' })
+  membershipPlan: MembershipPlan;
 }

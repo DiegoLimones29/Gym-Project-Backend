@@ -1,10 +1,22 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { ValidationPipe } from '@nestjs/common';
+
+function parseCorsOrigins(raw?: string): string[] | boolean {
+  if (!raw) {
+    return ['http://localhost:5173'];
+  }
+  if (raw.trim() === '*') {
+    return true;
+  }
+  return raw
+    .split(',')
+    .map((origin) => origin.trim())
+    .filter(Boolean);
+}
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
-
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -12,9 +24,17 @@ async function bootstrap() {
       forbidNonWhitelisted: true,
     }),
   );
-  app.enableCors({ origin: 'http://localhost:5173' });
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`App running on port ${process.env.PORT}`);
+  app.enableCors({
+    origin: parseCorsOrigins(process.env.CORS_ORIGIN),
+    credentials: true,
+  });
+
+  app.enableShutdownHooks();
+
+  const port = Number(process.env.PORT ?? 3000);
+  await app.listen(port, '0.0.0.0');
+  console.log(`App running on port ${port}`);
 }
-bootstrap();
+
+void bootstrap();

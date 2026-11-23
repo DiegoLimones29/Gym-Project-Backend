@@ -5,10 +5,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Subscription } from './entities/subscription.entity';
 import { MembershipPlan } from '../membership_plan/entities/membership_plan.entity';
+import { UsersClientService } from '../users-client/users-client.service';
 import { CreateSubscriptionDto } from './dto/create-subscription.dto';
 import { UpdateSubscriptionDto } from './dto/update-subscription.dto';
+import { Subscription } from './entities/subscription.entity';
 
 @Injectable()
 export class SubscriptionService {
@@ -17,9 +18,12 @@ export class SubscriptionService {
     private readonly subRepo: Repository<Subscription>,
     @InjectRepository(MembershipPlan)
     private readonly planRepo: Repository<MembershipPlan>,
+    private readonly usersClient: UsersClientService,
   ) {}
 
   async create(dto: CreateSubscriptionDto) {
+    await this.usersClient.assertUsersExist([dto.memberId]);
+
     const existingActive = await this.subRepo.findOne({
       where: {
         memberId: dto.memberId,
@@ -57,24 +61,44 @@ export class SubscriptionService {
 
   async findAll() {
     const subscriptions = await this.subRepo.find({
-      relations: { user: true, membershipPlan: true },
+      relations: { membershipPlan: true },
       order: { createdAt: 'DESC' },
     });
-    return { data: subscriptions };
+    const usersMap = await this.usersClient.findUsersByIds(
+      subscriptions.map((sub) => sub.memberId),
+    );
+    return {
+      data: subscriptions.map((sub) => ({
+        ...sub,
+        user: usersMap.get(sub.memberId) ?? null,
+      })),
+    };
   }
 
   async findOne(id: string) {
     const subscription = await this.subRepo.findOne({
       where: { id },
-      relations: { user: true, membershipPlan: true },
+      relations: { membershipPlan: true },
     });
     if (!subscription) {
       throw new NotFoundException(`Suscripción ${id} no encontrada`);
     }
-    return { data: subscription };
+    const usersMap = await this.usersClient.findUsersByIds([
+      subscription.memberId,
+    ]);
+    return {
+      data: {
+        ...subscription,
+        user: usersMap.get(subscription.memberId) ?? null,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateSubscriptionDto) {
+    if (dto.memberId) {
+      await this.usersClient.assertUsersExist([dto.memberId]);
+    }
+
     const subscription = await this.subRepo.preload({
       id,
       ...dto,

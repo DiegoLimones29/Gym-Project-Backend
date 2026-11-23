@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { UsersClientService } from '../users-client/users-client.service';
 import { WorkerProfile } from './entities/worker_profile.entity';
 import { CreateWorkerProfileDto } from './dto/create-worker_profile.dto';
 import { UpdateWorkerProfileDto } from './dto/update-worker_profile.dto';
@@ -14,9 +15,12 @@ export class WorkerProfileService {
   constructor(
     @InjectRepository(WorkerProfile)
     private readonly workerRepo: Repository<WorkerProfile>,
+    private readonly usersClient: UsersClientService,
   ) {}
 
   async create(dto: CreateWorkerProfileDto) {
+    await this.usersClient.assertUsersExist([dto.userId]);
+
     const profile = this.workerRepo.create(dto);
     try {
       const saved = await this.workerRepo.save(profile);
@@ -32,24 +36,39 @@ export class WorkerProfileService {
   }
 
   async findAll() {
-    const profiles = await this.workerRepo.find({
-      relations: { user: true },
-    });
-    return { data: profiles };
+    const profiles = await this.workerRepo.find();
+    const usersMap = await this.usersClient.findUsersByIds(
+      profiles.map((profile) => profile.userId),
+    );
+    return {
+      data: profiles.map((profile) => ({
+        ...profile,
+        user: usersMap.get(profile.userId) ?? null,
+      })),
+    };
   }
 
   async findOne(id: string) {
     const profile = await this.workerRepo.findOne({
       where: { id },
-      relations: { user: true },
     });
     if (!profile) {
       throw new NotFoundException(`Perfil de trabajador ${id} no encontrado`);
     }
-    return { data: profile };
+    const usersMap = await this.usersClient.findUsersByIds([profile.userId]);
+    return {
+      data: {
+        ...profile,
+        user: usersMap.get(profile.userId) ?? null,
+      },
+    };
   }
 
   async update(id: string, dto: UpdateWorkerProfileDto) {
+    if (dto.userId) {
+      await this.usersClient.assertUsersExist([dto.userId]);
+    }
+
     const profile = await this.workerRepo.preload({ id, ...dto });
     if (!profile) {
       throw new NotFoundException(`Perfil de trabajador ${id} no encontrado`);
