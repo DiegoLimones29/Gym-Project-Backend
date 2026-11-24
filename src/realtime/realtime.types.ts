@@ -7,3 +7,13 @@ export interface DbChangeEvent {
   timestamp: number;
   source?: string;
 }
+
+export interface SequencedDbChangeEvent extends DbChangeEvent {
+  seq: number;
+}
+
+export interface RealtimePollResponse {
+  cursor: number;
+  events: SequencedDbChangeEvent[];
+  reset: boolean;
+}

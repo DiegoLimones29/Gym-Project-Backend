@@ -8,7 +8,7 @@ import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { Client } from 'pg';
 import { getPgClientConfig } from '../database/db-config';
-import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeService } from './realtime.service';
 import type { DbChangeEvent } from './realtime.types';
 
 const WATCHED_TABLES = [
@@ -40,7 +40,7 @@ export class PgRealtimeListenerService
   constructor(
     private readonly dataSource: DataSource,
     private readonly configService: ConfigService,
-    private readonly realtimeGateway: RealtimeGateway,
+    private readonly realtimeService: RealtimeService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -143,7 +143,7 @@ export class PgRealtimeListenerService
       if (msg.channel !== 'db_changes' || !msg.payload) return;
       try {
         const payload = JSON.parse(msg.payload) as DbChangeEvent;
-        this.realtimeGateway.emitDbChange({
+        this.realtimeService.emitDbChange({
           ...payload,
           source: 'gym-db',
         });

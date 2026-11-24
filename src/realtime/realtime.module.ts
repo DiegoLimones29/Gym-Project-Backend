@@ -3,19 +3,20 @@ import { AuthModule } from '../auth/auth.module';
 import { InternalApiKeyGuard } from '../common/guards/internal-api-key.guard';
 import { PgRealtimeListenerService } from './pg-realtime-listener.service';
 import { RealtimeInternalController } from './realtime-internal.controller';
-import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeController } from './realtime.controller';
+import { RealtimeService } from './realtime.service';
 import { UserCleanupService } from './user-cleanup.service';
 
 @Global()
 @Module({
   imports: [AuthModule],
-  controllers: [RealtimeInternalController],
+  controllers: [RealtimeController, RealtimeInternalController],
   providers: [
-    RealtimeGateway,
+    RealtimeService,
     PgRealtimeListenerService,
     UserCleanupService,
     InternalApiKeyGuard,
   ],
-  exports: [RealtimeGateway, UserCleanupService],
+  exports: [RealtimeService, UserCleanupService],
 })
 export class RealtimeModule {}

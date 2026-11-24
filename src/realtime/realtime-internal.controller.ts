@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { IsIn, IsNumber, IsOptional, IsString } from 'class-validator';
 import { InternalApiKeyGuard } from '../common/guards/internal-api-key.guard';
-import { RealtimeGateway } from './realtime.gateway';
+import { RealtimeService } from './realtime.service';
 import type { DbChangeAction } from './realtime.types';
 import { UserCleanupService } from './user-cleanup.service';
 
@@ -34,7 +34,7 @@ export class DbChangeDto {
 @Controller('internal/realtime')
 export class RealtimeInternalController {
   constructor(
-    private readonly realtimeGateway: RealtimeGateway,
+    private readonly realtimeService: RealtimeService,
     private readonly userCleanupService: UserCleanupService,
   ) {}
 
@@ -45,7 +45,7 @@ export class RealtimeInternalController {
       await this.userCleanupService.cleanupForDeletedUser(dto.id);
     }
 
-    this.realtimeGateway.emitDbChange(dto);
+    this.realtimeService.emitDbChange(dto);
     return { received: true };
   }
 }
